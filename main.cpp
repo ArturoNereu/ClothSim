@@ -1,6 +1,7 @@
 /*
 ** Cloth Simulation
 ** Author: Arturo Nereu
+** Author: Diego Gurrusquieta
 */
 
 #include <windows.h>
@@ -12,15 +13,28 @@
 #include "Material.h"
 
 #define MAX_RESOLUTION 80
-#define MIN_RESOLUTION 10
+#define MIN_RESOLUTION 20
 #define RESOLUTION_DELTA 10
 
 #define WIRE_SIZE 600
+
+#define SPHERE_RADIUS 100
+#define SPHERE_SLICES 20
+
+#define CYLINDER_RADIUS 80
+#define CYLINDER_HEIGHT 240
+#define CYLINDER_SLICES 10
+
 Wire *myWire;
 
 Light *dirLight;
 
 Material *material;
+
+//Info to draw the capsule
+//GLUquadricObj *cylinder;
+//Vector *p0;
+//Vector *p1;
 
 //Flags to show/hide elements
 bool showParticles = true;
@@ -40,15 +54,15 @@ bool mouseDown=false;
 GLuint texName=0;
 unsigned char woodtexture[512][512][3];
 
-//Camera variables
+//Camera variabless
 float global_ambient[4] = {0.0, 0.0, 0.0, 0.0};
 float cameraEye[4] = {0.0, 0.0, 1000.0, 1.0};
 float cameraLookAt[4] = {0.0, 0.0, 0.0, 1.0};
 float cameraUp[4] = {0.0, 1.0, 0.0};
 
 float fovy = 45.0;
-float dNear = 0;
-float dFar = 500;
+float dNear = 100;
+float dFar = 2000;
 
 void initTexture(){
 
@@ -56,7 +70,7 @@ void initTexture(){
    int w, h, d;
    FILE *fp;
    int i, j, k;
-   fp = fopen("madera.ppm","rb");
+   fp = fopen("mantel.ppm","rb");
    fscanf(fp,"%*s ");
    fscanf(fp,"%d %d %d ", &w, &h, &d) ;
    for (i = 0 ; i < w ; i++)
@@ -64,7 +78,7 @@ void initTexture(){
        for (k = 0 ; k < 3 ; k++)
 	     fscanf(fp,"%c",&(woodtexture[i][j][k])) ;
    fclose(fp) ;
-
+    printf("textura leida\n");
    /* Now, set up all the stuff for texturing, per page 368 */
    glGenTextures(1, &texName) ;
    glBindTexture(GL_TEXTURE_2D, texName) ;
@@ -74,7 +88,6 @@ void initTexture(){
    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR) ;
    glTexImage2D(GL_TEXTURE_2D,0,GL_RGB, 512, 512, 0, GL_RGB,
 	   GL_UNSIGNED_BYTE, woodtexture);
-    printf("textura leida");
 }
 
 void reshape(int w, int h){
@@ -95,10 +108,7 @@ void display(void){
     glRotatef(rotationX,1,0,0);
     glRotatef(rotationY,0,1,0);
 
-    glPushMatrix();
-    glTranslatef(0, -250, 0);
-    glutSolidSphere(100, 20, 20);
-    glPopMatrix();
+    myWire->renderTriangles(showWireframe, flatShade);
 
     if(showParticles)
     {
@@ -106,9 +116,15 @@ void display(void){
     }
 
     if(showTexture)
+    {
         glEnable(GL_TEXTURE_2D);
+        glEnable(GL_COLOR_MATERIAL);
+    }
     else
+    {
         glDisable(GL_TEXTURE_2D);
+        glDisable(GL_COLOR_MATERIAL);
+    }
 
     if(flatShade)
     {
@@ -119,8 +135,30 @@ void display(void){
         glShadeModel(GL_SMOOTH);
     }
 
-    myWire->renderTriangles(showWireframe);
     //myWire->renderSprings();
+    //glPushMatrix();
+    //glTranslatef(0, -250, 0);
+    glutSolidSphere(SPHERE_RADIUS, SPHERE_SLICES, SPHERE_SLICES);
+    //glPopMatrix();
+/*
+    if(showWireframe)
+    {
+        gluQuadricDrawStyle(cylinder, GLU_LINE);
+    }
+    else
+    {
+        gluQuadricDrawStyle(cylinder, GLU_FILL);
+    }
+
+    glPushMatrix();
+        glRotatef(90, 0, 1, 0);
+        glTranslatef(0, 0, -CYLINDER_HEIGHT/2);
+        gluSphere(cylinder, CYLINDER_RADIUS, CYLINDER_SLICES, CYLINDER_SLICES);
+        gluCylinder(cylinder, CYLINDER_RADIUS, CYLINDER_RADIUS, CYLINDER_HEIGHT, CYLINDER_SLICES, CYLINDER_SLICES);
+        glTranslatef(0, 0, CYLINDER_HEIGHT);
+        gluSphere(cylinder, CYLINDER_RADIUS, CYLINDER_SLICES, CYLINDER_SLICES);
+    glPopMatrix();
+*/
     glutSwapBuffers();
 }
 
@@ -128,6 +166,11 @@ void init(void)
 {
     rotationX = 0;
     rotationY = 0;
+
+    //Cylinder related
+    //cylinder = gluNewQuadric();
+    //p0 = new Vector(-120, 0, 0);
+    //p1 = new Vector(120, 0, 0);
 
     //Lighting related
     dirLight = new Light();
@@ -141,12 +184,12 @@ void init(void)
     material->setDifusse(0.01f, 0.01f, 0.01f, 1.0f);
     material->setSpecular(0.5f, 0.5f, 0.5f, 1.0f);
 	material->setShininess(32);
-
+/*
 	glMaterialfv(GL_FRONT, GL_AMBIENT,  material->ambient);
     glMaterialfv(GL_FRONT, GL_DIFFUSE,  material->difusse);
     glMaterialfv(GL_FRONT, GL_SPECULAR, material->specular);
     glMaterialf(GL_FRONT, GL_SHININESS, material->shininess);
-
+*/
 	glEnable(GL_DEPTH_TEST);
     glClearColor(1, 1, 1, 1);
     glMatrixMode(GL_PROJECTION);
@@ -157,7 +200,7 @@ void init(void)
     glEnable(GL_LIGHTING);
     glEnable(GL_LIGHT0);
     glEnable(GL_NORMALIZE);
-    glEnable(GL_COLOR_MATERIAL);
+    //glEnable(GL_COLOR_MATERIAL);
     glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 
     glLightfv(GL_LIGHT0, GL_POSITION, dirLight->pos);
@@ -226,7 +269,7 @@ void key(unsigned char key, int x, int y)
 
 void update(int i)
 {
-    myWire->update();
+    myWire->update(SPHERE_RADIUS);
 
     glutPostRedisplay();
     glutTimerFunc(100, update, 1);
@@ -239,21 +282,19 @@ int main(int argc, char **argv)
 
     glutCreateWindow("Cloth");
     glutInitWindowSize(800,600);
+
+    init();
+
     glutDisplayFunc(display);
     glutReshapeFunc(reshape);
     glutMouseFunc(mouse);
     glutMotionFunc(mouseMotion);
     glutKeyboardFunc(key);
     glutTimerFunc(100, update, 100);
-    glEnable(GL_DEPTH_TEST);
-    glDepthFunc(GL_LESS);
 
-    glEnable(GL_COLOR_MATERIAL);
     glEnable(GL_NORMALIZE);
 
     initWire();
-
-    init();
 
     glutMainLoop();
 

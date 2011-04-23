@@ -27,7 +27,7 @@ void Triangle::setTriangle(Particle *p1, Particle *p2, Particle *p3)
     //printf("V2: %f, %f\n", particles[2]->position->x, particles[2]->position->z);
 }
 
-void Triangle::render(int resolution, bool showWireframe)
+void Triangle::render(int resolution, bool showWireframe, bool flatShade)
 {
     float uOffset = 1.0 / (resolution - 1);
     float vOffset = 1.0 / (resolution - 1);
@@ -41,12 +41,19 @@ void Triangle::render(int resolution, bool showWireframe)
     else
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
+    if(flatShade)
+    {
+        glNormal3f(normal->x, normal->y, normal->z);
+    }
 
     glBegin(GL_POLYGON);
         for(int i = 0; i < 3; i++)
         {
-            glNormal3f(normal->x, normal->y, normal->z);
             glTexCoord2f(particles[i]->posI * uOffset, (resolution - 1 - particles[i]->posJ) * vOffset);
+            if(!flatShade)
+            {
+                glNormal3f(particles[i]->normal->x, particles[i]->normal->y, particles[i]->normal->z);
+            }
             glVertex3f(particles[i]->position->x, particles[i]->position->y, particles[i]->position->z);
         }
     glEnd();

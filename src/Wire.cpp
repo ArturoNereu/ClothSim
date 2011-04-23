@@ -30,9 +30,9 @@ Wire::Wire(int resolution, int size)
         for(int j = 0; j < resolution; j++)
         {
             Particle *tmpParticle = new Particle();
-            tmpParticle->setPosition((i - resolution / 2) * delta, 0, (j - resolution / 2) * delta, i, j);
-            if(i == 0)
-                tmpParticle->isFixed = true;
+            tmpParticle->setPosition((i - resolution / 2) * delta, 100, ((j - resolution / 2) * delta) + 100, i, j);
+            //if(i == 0)
+                //tmpParticle->isFixed = true;
 
             addParticle(tmpParticle, i, j);
         }
@@ -61,11 +61,39 @@ void Wire::generateTriangles(int resolution)
         {
             Triangle *tmpTriangle = new Triangle();
             tmpTriangle->setTriangle(&particles[i][j], &particles[i][j+1], &particles[i+1][j]);
+
+            //add the index of adjacent triangles to each particle
+            int currentIndex = particles[i][j].numberOfAdjTriangles;
+            particles[i][j].adjTriangles[currentIndex] = trianglesIndex;
+            particles[i][j].numberOfAdjTriangles++;
+
+            currentIndex = particles[i][j+1].numberOfAdjTriangles;
+            particles[i][j+1].adjTriangles[currentIndex] = trianglesIndex;
+            particles[i][j+1].numberOfAdjTriangles++;
+
+            currentIndex = particles[i+1][j].numberOfAdjTriangles;
+            particles[i+1][j].adjTriangles[currentIndex] = trianglesIndex;
+            particles[i+1][j].numberOfAdjTriangles++;
+
             triangles[trianglesIndex] = tmpTriangle;
             trianglesIndex++;
 
             tmpTriangle = new Triangle();
             tmpTriangle->setTriangle(&particles[i][j+1], &particles[i+1][j+1], &particles[i+1][j]);
+
+            //add the index of adjacent triangles to each particle
+            currentIndex = particles[i][j+1].numberOfAdjTriangles;
+            particles[i][j+1].adjTriangles[currentIndex] = trianglesIndex;
+            particles[i][j+1].numberOfAdjTriangles++;
+
+            currentIndex = particles[i+1][j+1].numberOfAdjTriangles;
+            particles[i+1][j+1].adjTriangles[currentIndex] = trianglesIndex;
+            particles[i+1][j+1].numberOfAdjTriangles++;
+
+            currentIndex = particles[i+1][j].numberOfAdjTriangles;
+            particles[i+1][j].adjTriangles[currentIndex] = trianglesIndex;
+            particles[i+1][j].numberOfAdjTriangles++;
+
             triangles[trianglesIndex] = tmpTriangle;
             trianglesIndex++;
         }
@@ -79,16 +107,40 @@ void Wire::renderParticles()
             for(int j = 0; j < resolution; j++)
             {
                     glColor3f(1, 1, 1);
+                    this->calculateParticleNormal(i, j);
                     this->particles[i][j].render();
             }
         }
 }
 
-void Wire::renderTriangles(bool showWireframe)
+void Wire::calculateParticleNormal(int c, int r)
+{
+    float x = 0;
+    float y = 0;
+    float z = 0;
+    float length = 0;
+
+    for(int i = 0; i < particles[c][r].numberOfAdjTriangles; i++)
+    {
+        x += triangles[particles[c][r].adjTriangles[i]]->normal->x;
+        y += triangles[particles[c][r].adjTriangles[i]]->normal->y;
+        z += triangles[particles[c][r].adjTriangles[i]]->normal->z;
+
+        length += triangles[particles[c][r].adjTriangles[i]]->normal->getLength();
+    }
+
+    particles[c][r].normal->x = x / length;
+    particles[c][r].normal->y = y / length;
+    particles[c][r].normal->z = z / length;
+
+    //printf("Normal: %f, %f, %f\n", particles[c][r].normal->x, particles[c][r].normal->y, particles[c][r].normal->z);
+}
+
+void Wire::renderTriangles(bool showWireframe, bool flatShade)
 {
     for(int i = 0; i < numberOfTriangles; i++)
     {
-        triangles[i]->render(resolution, showWireframe);
+        triangles[i]->render(resolution, showWireframe, flatShade);
     }
 }
 
@@ -100,7 +152,7 @@ void Wire::renderSprings()
     }
 }
 
-void Wire::update()
+void Wire::update(int sphereRadius)
 {
     for(int i = 0; i < resolution; i++)
     {
@@ -120,7 +172,7 @@ void Wire::update()
     {
         for(int j = 0; j < resolution; j++)
         {
-            particles[i][j].update();
+            particles[i][j].update(sphereRadius);
         }
     }
 }

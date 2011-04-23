@@ -53,15 +53,11 @@ void Vector::crossProduct(Vector *res, Vector v1, Vector v2)
     res->z = v1.x * v2.y - v1.y * v2.x;
 }
 
-Vector *Vector::multiplicationByScalar(Vector *res, Vector v1, float scalarValue)
+void Vector::multiplicationByScalar(Vector *res, Vector v1, float scalarValue)
 {
-    Vector *result = new Vector();
-
     res->x = v1.x * scalarValue;
     res->y = v1.y * scalarValue;
     res->z = v1.z * scalarValue;
-
-    return result;
 }
 
 float Vector::dotProduct(Vector v1, Vector v2)

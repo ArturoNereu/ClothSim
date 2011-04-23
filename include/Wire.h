@@ -33,10 +33,11 @@ class Wire
         void addParticle(Particle *particle, int i, int j);
         void generateTriangles(int resolution);
         void renderParticles();
-        void renderTriangles(bool showWireframe);
+        void renderTriangles(bool showWireframe, bool flatShade);
         void renderSprings();
-        void update();
+        void update(int sphereRadius);
         void generateSprings();
+        void calculateParticleNormal(int c, int r);
     protected:
     private:
 };

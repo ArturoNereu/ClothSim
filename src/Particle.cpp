@@ -1,6 +1,7 @@
 /*
 ** Cloth Simulation
 ** Author: Arturo Nereu
+** Author: Diego Gurrusquieta
 */
 
 #include "Particle.h"
@@ -10,7 +11,9 @@ Particle::Particle()
     //ctor
     forceAcum = new Vector();
     velocity = new Vector();
-    this->radius = 0.1;
+    normal = new Vector();
+    this->radius = 5;
+    this->numberOfAdjTriangles = 0;
 }
 
 Particle::~Particle()
@@ -76,7 +79,7 @@ Vector * Particle::verletIntegrationToPosition()
     return nextPos;
 }
 
-void Particle::update()
+void Particle::update(int sphereRadius)
 {
     velocity->x = forceAcum->x * 0.1f;
     velocity->y = forceAcum->y * 0.1f;
@@ -99,16 +102,68 @@ void Particle::update()
     prevPosition->y = tempY;
     prevPosition->z = tempZ;
 
-    checkCollision();
+    checkCollisionWithSphere(sphereRadius);
+    //checkCollisionWithCapsule(p0, p1, cylinderRadius);
 }
 
-void Particle::checkCollision()
+void Particle::checkCollisionWithCapsule(Vector p0, Vector p1, float radius)
+{
+    Vector *A = new Vector();
+    Vector::substract(A, p0, p1);
+
+    Vector *D = new Vector();
+    Vector::substract(D, p0, *(position));
+
+    float d = Vector::dotProduct(*D, *A);
+
+    if(d < 0)
+    {
+        d = 0;
+    }
+    else if(d > A->getLength())
+    {
+        d = A->getLength();
+    }
+
+    Vector *aD = new Vector();
+    Vector::multiplicationByScalar(aD, *A, d);
+
+    Vector *R = new Vector();
+    R->x = p0.x + aD->x;
+    R->y = p0.y + aD->y;
+    R->z = p0.z + aD->z;
+
+    Vector *distHR = new Vector();
+    Vector::substract(distHR, *R, *position);
+
+    float b = distHR->getLength();
+
+    if(b < (this->radius + radius))
+    {
+        float p = b - (this->radius + radius);
+
+        Vector *N = new Vector();
+        N->x = distHR->x;// / b;
+        N->y = distHR->y;// / b;
+        N->z = distHR->z;// / b;
+        N->normalize();
+
+        Vector *P = new Vector();
+        Vector::multiplicationByScalar(P, *N, p);
+
+        this->position->x += P->x;
+        this->position->y += P->y;
+        this->position->z += P->z;
+    }
+}
+
+void Particle::checkCollisionWithSphere(int radius)
 {
     float penDist;
-    Vector *spherePos = new Vector(0, -250, 0);
+    Vector *spherePos = new Vector(0, 0, 0);
     Vector *dist = new Vector();
     Vector::substract(dist, *position, *spherePos);
-    penDist = dist->getLength() - (100 + this->radius);
+    penDist = dist->getLength() - (radius + this->radius);
 
     dist->normalize();
 
@@ -121,5 +176,5 @@ void Particle::checkCollision()
         this->position->y += P->y;
         this->position->z += P->z;
     }
-
 }
+

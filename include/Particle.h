@@ -19,11 +19,15 @@ class Particle
         int posI, posJ;
         float radius;
 
+        int numberOfAdjTriangles;
+        int adjTriangles[6];
+
         Vector *position;
         Vector *prevPosition;
         Vector *forceAcum;
         Vector *velocity;
         bool isFixed;
+        Vector *normal;
 
         Particle();
         virtual ~Particle();
@@ -34,8 +38,9 @@ class Particle
         void render();
         Vector *verletIntegrationToVelocity();
         Vector *verletIntegrationToPosition();
-        void update();
-        void checkCollision();
+        void update(int sphereRadius);
+        void checkCollisionWithSphere(int radius);
+        void checkCollisionWithCapsule(Vector p0, Vector p1, float radius);
 
     protected:
     private:

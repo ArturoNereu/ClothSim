@@ -30,7 +30,7 @@ class Vector
         static void substract(Vector *res, Vector v1, Vector v2);
         static void crossProduct(Vector *res, Vector v1, Vector v2);
         static float dotProduct(Vector v1, Vector v2);
-        static Vector *multiplicationByScalar(Vector *res, Vector v1, float scalarValue);
+        static void multiplicationByScalar(Vector *res, Vector v1, float scalarValue);
     protected:
     private:
 };

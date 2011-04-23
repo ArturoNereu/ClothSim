@@ -21,7 +21,7 @@ class Triangle
 
         void setTriangle(Particle *p1, Particle *p2, Particle *p3);
         void calculateNormal();
-        void render(int resolution, bool showWireframe);
+        void render(int resolution, bool showWireframe, bool flatShade);
     protected:
     private:
 };
