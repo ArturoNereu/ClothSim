@@ -6,6 +6,7 @@
 
 #include <windows.h>
 #include <GL/glut.h>
+#include <GL/glui.h>
 
 #include <stdio.h>
 #include "Wire.h"
@@ -25,6 +26,19 @@
 #define CYLINDER_HEIGHT 240
 #define CYLINDER_SLICES 10
 
+/********** User IDs for callbacks ********/
+#define MESH_RESOLUTION_ID 100
+#define TEXTURE_ENABLED_ID 200
+#define SHOW_WIRE_FRAME_ID 201
+#define FLAT_SHADE_ID 202
+#define SHOW_PARTICLES_ID 203
+#define ENABLE_LIGHT_ID 300
+#define LIGHT_LEVEL_ID 301
+#define LIGHT_RED_COMPONENT_ID 302
+#define LIGHT_GREEN_COMPONENT_ID 303
+#define LIGHT_BLUE_COMPONENT_ID 304
+#define GRAVITY_CONSTANT_ID 400
+
 Wire *myWire;
 
 Light *dirLight;
@@ -37,10 +51,11 @@ Material *material;
 //Vector *p1;
 
 //Flags to show/hide elements
-bool showParticles = true;
-bool showTexture = true;
-bool showWireframe = false;
-bool flatShade = true;
+int showParticles = 1;
+int showTexture = 1;
+int showWireframe = 0;
+int flatShade = 0;
+int lightEnabled = 1;
 
 int resolution = MIN_RESOLUTION;
 
@@ -50,19 +65,35 @@ float prevX=0.0;
 float prevY=0.0;
 bool mouseDown=false;
 
+//Gravity force
+float gravityForce = -10.0f;
+
 //Texture
 GLuint texName=0;
 unsigned char woodtexture[512][512][3];
 
 //Camera variabless
 float global_ambient[4] = {0.0, 0.0, 0.0, 0.0};
-float cameraEye[4] = {0.0, 0.0, 1000.0, 1.0};
+float cameraEye[3] = {0.0, 0.0, 1000.0};
 float cameraLookAt[4] = {0.0, 0.0, 0.0, 1.0};
 float cameraUp[4] = {0.0, 1.0, 0.0};
+
+float viewRotation[16] = {1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1};
+float lightRotation[16] = {1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1};
 
 float fovy = 45.0;
 float dNear = 100;
 float dFar = 2000;
+
+float intensity = 1.0f;
+
+//Variables used for GLUI
+int main_window;
+GLUI_Spinner *spinnerResolution, *lightIntensitySpinner, *gravitySpinner;
+GLUI_Checkbox *textureEnabledCheckBox, *showWireframeCheckBox, *showFlatShadeCheckBox, *showParticlesCheckBox, *enableLightCheckBox;
+GLUI_Scrollbar *redBar, *greenBar, *blueBar;
+GLUI_Rotation *lightRotationBall, *sceneRotation;
+GLUI_Translation *translationXY, *translationZ;
 
 void initTexture(){
 
@@ -103,17 +134,34 @@ void display(void){
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
 
+    glMultMatrixf(lightRotation);
+    glLightfv(GL_LIGHT0, GL_POSITION, dirLight->pos);
+
+    glLoadIdentity();
     gluLookAt(cameraEye[0], cameraEye[1], cameraEye[2], cameraLookAt[0], cameraLookAt[1], cameraLookAt[2], cameraUp[0], cameraUp[1], cameraUp[2]);
+
+    glMultMatrixf(viewRotation);
 
     glRotatef(rotationX,1,0,0);
     glRotatef(rotationY,0,1,0);
 
     myWire->renderTriangles(showWireframe, flatShade);
 
+    if(lightEnabled)
+    {
+        glEnable(GL_LIGHTING);
+    }
+    else
+    {
+        glDisable(GL_LIGHTING);
+    }
+
     if(showParticles)
     {
         myWire->renderParticles();
     }
+
+    glLightfv(GL_LIGHT0, GL_DIFFUSE, dirLight->difusse);
 
     if(showTexture)
     {
@@ -174,15 +222,15 @@ void init(void)
 
     //Lighting related
     dirLight = new Light();
-    dirLight->setPosition(0, 500, 0);
+    dirLight->setPosition(0, 300, 100);
     dirLight->setAmbient(0, 0, 0);
-    dirLight->setDifusse(0.0f, 0.8f, 0.0f);
-    dirLight->setSpecular(0.8f, 0.8f, 0.8f);
+    dirLight->setDifusse(0.8f, 0.8f, 0.8f);
+    dirLight->setSpecular(0.0f, 0.8f, 0.0f);
 
     material = new Material();
     material->setAmbient(0, 0, 0, 1);
-    material->setDifusse(0.01f, 0.01f, 0.01f, 1.0f);
-    material->setSpecular(0.5f, 0.5f, 0.5f, 1.0f);
+    material->setDifusse(0.7f, 0.7f, 0.7f, 1.0f);
+    material->setSpecular(0.01f, 0.01f, 0.01f, 1.0f);
 	material->setShininess(32);
 /*
 	glMaterialfv(GL_FRONT, GL_AMBIENT,  material->ambient);
@@ -190,6 +238,9 @@ void init(void)
     glMaterialfv(GL_FRONT, GL_SPECULAR, material->specular);
     glMaterialf(GL_FRONT, GL_SHININESS, material->shininess);
 */
+
+    glEnable(GL_NORMALIZE);
+
 	glEnable(GL_DEPTH_TEST);
     glClearColor(1, 1, 1, 1);
     glMatrixMode(GL_PROJECTION);
@@ -205,8 +256,8 @@ void init(void)
 
     glLightfv(GL_LIGHT0, GL_POSITION, dirLight->pos);
     glLightfv(GL_LIGHT0, GL_AMBIENT,   dirLight->ambient);
-    glLightfv(GL_LIGHT0, GL_SPECULAR,  dirLight->difusse);
-    glLightfv(GL_LIGHT0, GL_DIFFUSE,   dirLight->specular);
+    glLightfv(GL_LIGHT0, GL_SPECULAR,  dirLight->specular);
+    glLightfv(GL_LIGHT0, GL_DIFFUSE,   dirLight->difusse);
 
     glLightModelfv(GL_LIGHT_MODEL_AMBIENT, global_ambient);
 }
@@ -232,6 +283,75 @@ void mouseMotion(int x, int y){
 void initWire()
 {
     myWire = new Wire(resolution, WIRE_SIZE);
+}
+
+void control_cb(int control)
+{
+    if(control == MESH_RESOLUTION_ID)
+    {
+        initWire();
+    }
+    else if(control == LIGHT_LEVEL_ID)
+    {
+        float diff1 = dirLight->difusse[0] + intensity;
+        float diff2 = dirLight->difusse[1] + intensity;
+        float diff3 = dirLight->difusse[2] + intensity;
+
+        dirLight->setDifusse(diff1, diff2, diff3);
+    }
+
+    glutPostRedisplay();
+}
+
+void glui()
+{
+    printf("GLUI version: %3.2f\n", GLUI_Master.get_version());
+
+    //Create the right side subwindow for the menu
+    GLUI *glui = GLUI_Master.create_glui_subwindow(main_window, GLUI_SUBWINDOW_RIGHT);
+
+    //Create the planel to change the resolution
+    GLUI_Panel *resolutionPanel = new GLUI_Panel(glui, "Resolution");
+    spinnerResolution = new GLUI_Spinner(resolutionPanel, "Mesh resolution", &resolution, MESH_RESOLUTION_ID, control_cb);
+    spinnerResolution->set_int_limits(MIN_RESOLUTION, MAX_RESOLUTION);
+
+    //Create the checkboxes for the rendering
+    GLUI_Panel *renderingPanel = new GLUI_Panel(glui, "Rendering");
+    textureEnabledCheckBox = new GLUI_Checkbox(renderingPanel, "Texture", &showTexture, TEXTURE_ENABLED_ID, control_cb);
+    showWireframeCheckBox = new GLUI_Checkbox(renderingPanel, "Wireframe", &showWireframe, SHOW_WIRE_FRAME_ID, control_cb);
+    showFlatShadeCheckBox = new GLUI_Checkbox(renderingPanel, "Flat Shading", &flatShade, FLAT_SHADE_ID, control_cb);
+    showParticlesCheckBox = new GLUI_Checkbox(renderingPanel, "Show Particles", &showParticles, SHOW_PARTICLES_ID, control_cb);
+
+    //Create the UI for the lighting
+    GLUI_Panel *lightPanel = new GLUI_Panel(glui, "Lighting");
+    enableLightCheckBox = new GLUI_Checkbox(lightPanel, "Enable Light", &lightEnabled, ENABLE_LIGHT_ID, control_cb);
+    lightIntensitySpinner = new GLUI_Spinner(lightPanel, "Light Intensity", &intensity, LIGHT_LEVEL_ID, control_cb);
+    lightIntensitySpinner->set_int_limits(0.0, 1.0);
+
+    redBar = new GLUI_Scrollbar(lightPanel, "Red Component", GLUI_SCROLL_HORIZONTAL, &dirLight->difusse[0], LIGHT_RED_COMPONENT_ID, control_cb);
+    redBar->set_float_limits(0.0, 1.0);
+    greenBar = new GLUI_Scrollbar(lightPanel, "Green Component", GLUI_SCROLL_HORIZONTAL, &dirLight->difusse[1], LIGHT_GREEN_COMPONENT_ID, control_cb);
+    greenBar->set_float_limits(0.0, 1.0);
+    blueBar = new GLUI_Scrollbar(lightPanel, "Blue Component", GLUI_SCROLL_HORIZONTAL, &dirLight->difusse[2], LIGHT_BLUE_COMPONENT_ID, control_cb);
+    blueBar->set_float_limits(0.0, 1.0);
+
+    lightRotationBall = new GLUI_Rotation(lightPanel, "Light rotation", lightRotation);
+    lightRotationBall->set_spin(1.0);
+
+    GLUI_Panel *scenePanel = new GLUI_Panel(glui, "Scene");
+    sceneRotation = new GLUI_Rotation(scenePanel, "Rotate Scene", viewRotation);
+    translationXY = new GLUI_Translation(scenePanel, "XY", GLUI_TRANSLATION_XY, cameraEye);
+    translationXY->set_speed(5);
+    translationZ = new GLUI_Translation(scenePanel, "Z", GLUI_TRANSLATION_Z, cameraEye);
+    translationZ->set_speed(5);
+
+    glui->set_main_gfx_window(main_window);
+    //Let´s make a panel at the bottom for the physics
+    GLUI *gluiPhys = GLUI_Master.create_glui_subwindow(main_window, GLUI_SUBWINDOW_BOTTOM);
+    gluiPhys->set_main_gfx_window(main_window);
+    GLUI_Panel *physicsPanel = new GLUI_Panel(gluiPhys, "Physics");
+    gravitySpinner = new GLUI_Spinner(physicsPanel, "Gravity force", &gravityForce, GRAVITY_CONSTANT_ID, control_cb);
+    gravitySpinner->set_float_limits(-20.0f, 10.0f);
 }
 
 void key(unsigned char key, int x, int y)
@@ -269,10 +389,10 @@ void key(unsigned char key, int x, int y)
 
 void update(int i)
 {
-    myWire->update(SPHERE_RADIUS);
+    myWire->update(SPHERE_RADIUS, gravityForce);
 
     glutPostRedisplay();
-    glutTimerFunc(100, update, 1);
+    glutTimerFunc(60, update, 1);
 }
 
 int main(int argc, char **argv)
@@ -280,22 +400,32 @@ int main(int argc, char **argv)
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_RGB | GLUT_DOUBLE | GLUT_DEPTH);
 
-    glutCreateWindow("Cloth");
     glutInitWindowSize(800,600);
+
+    main_window = glutCreateWindow("Cloth");
 
     init();
 
     glutDisplayFunc(display);
-    glutReshapeFunc(reshape);
-    glutMouseFunc(mouse);
-    glutMotionFunc(mouseMotion);
-    glutKeyboardFunc(key);
-    glutTimerFunc(100, update, 100);
 
-    glEnable(GL_NORMALIZE);
+    //Comment if you dont want to use GLUI
+    //glutReshapeFunc(reshape);
+    //glutMouseFunc(mouse);
+    //glutKeyboardFunc(key);
+
+    //Uncoment if you want to use GLUI
+    GLUI_Master.set_glutReshapeFunc(reshape);
+    GLUI_Master.set_glutKeyboardFunc(key);
+    GLUI_Master.set_glutMouseFunc(mouse);
+    //GLUI_Master.set_glutIdleFunc(NULL);
+
+    glutTimerFunc(60, update, 10);
+
+    glutMotionFunc(mouseMotion);
 
     initWire();
 
+    glui();
     glutMainLoop();
 
     return(EXIT_SUCCESS);

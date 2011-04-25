@@ -31,8 +31,8 @@ Wire::Wire(int resolution, int size)
         {
             Particle *tmpParticle = new Particle();
             tmpParticle->setPosition((i - resolution / 2) * delta, 100, ((j - resolution / 2) * delta) + 100, i, j);
-            //if(i == 0)
-                //tmpParticle->isFixed = true;
+            if(i == 0)
+                tmpParticle->isFixed = true;
 
             addParticle(tmpParticle, i, j);
         }
@@ -102,15 +102,26 @@ void Wire::generateTriangles(int resolution)
 
 void Wire::renderParticles()
 {
+    glPointSize(4);
+
+    glDisable(GL_TEXTURE_2D);
+
     for(int i = 0; i < resolution; i++)
+    {
+        for(int j = 0; j < resolution; j++)
         {
-            for(int j = 0; j < resolution; j++)
-            {
-                    glColor3f(1, 1, 1);
-                    this->calculateParticleNormal(i, j);
-                    this->particles[i][j].render();
-            }
+            if(this->particles[i][j].isFixed)
+                glColor3f(1, 0, 0);
+            else
+                glColor3f(0, 1, 1);
+
+            this->calculateParticleNormal(i, j);
+            this->particles[i][j].render();
         }
+    }
+
+    glEnable(GL_TEXTURE_2D);
+    glPointSize(1);
 }
 
 void Wire::calculateParticleNormal(int c, int r)
@@ -152,14 +163,14 @@ void Wire::renderSprings()
     }
 }
 
-void Wire::update(int sphereRadius)
+void Wire::update(int sphereRadius, float gravityForce)
 {
     for(int i = 0; i < resolution; i++)
     {
         for(int j = 0; j < resolution; j++)
         {
             particles[i][j].clearForces();
-            particles[i][j].addForce(0, -10.0f, 0);
+            particles[i][j].addForce(0, gravityForce, 0);
         }
     }
 
