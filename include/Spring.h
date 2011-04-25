@@ -23,7 +23,7 @@ class Spring
         virtual ~Spring();
 
         void applyForce();
-        void update();
+        void update(float ks, float kd);
         void render();
         void applySpringForce();
         float getLength();

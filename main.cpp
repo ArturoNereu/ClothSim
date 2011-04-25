@@ -2,6 +2,7 @@
 ** Cloth Simulation
 ** Author: Arturo Nereu
 ** Author: Diego Gurrusquieta
+** 8 a 12 y 13:17
 */
 
 #include <windows.h>
@@ -38,6 +39,14 @@
 #define LIGHT_GREEN_COMPONENT_ID 303
 #define LIGHT_BLUE_COMPONENT_ID 304
 #define GRAVITY_CONSTANT_ID 400
+#define GRAVITY_DIRECTION_ID 401
+#define KS_ID 402
+#define KD_ID 403
+#define PARTICLE_RADIUS_ID 404
+#define START_ID 500
+#define PAUSE_ID 501
+#define RESTART_ID 502
+#define FIGURE_ID 600
 
 Wire *myWire;
 
@@ -56,6 +65,8 @@ int showTexture = 1;
 int showWireframe = 0;
 int flatShade = 0;
 int lightEnabled = 1;
+int figure = 0;
+bool isPaused = true;
 
 int resolution = MIN_RESOLUTION;
 
@@ -66,7 +77,11 @@ float prevY=0.0;
 bool mouseDown=false;
 
 //Gravity force
-float gravityForce = -10.0f;
+float gravityForce = 10.0f;
+Vector *gravityDirection;
+float ks = 20;
+float kd = 0.2f;
+float particleRadius = 5;
 
 //Texture
 GLuint texName=0;
@@ -89,11 +104,14 @@ float intensity = 1.0f;
 
 //Variables used for GLUI
 int main_window;
-GLUI_Spinner *spinnerResolution, *lightIntensitySpinner, *gravitySpinner;
+GLUI_Spinner *spinnerResolution, *lightIntensitySpinner, *gravitySpinner, *gravityXSpinner, *gravityYSpinner, *gravityZSpinner
+            ,*springKsSpinner, *springKdSpinner, *particleRadiusSpinner;
 GLUI_Checkbox *textureEnabledCheckBox, *showWireframeCheckBox, *showFlatShadeCheckBox, *showParticlesCheckBox, *enableLightCheckBox;
 GLUI_Scrollbar *redBar, *greenBar, *blueBar;
 GLUI_Rotation *lightRotationBall, *sceneRotation;
 GLUI_Translation *translationXY, *translationZ;
+GLUI_Button *startButton, *pauseButton, *resetButton;
+GLUI_RadioGroup *collisionObjecGroup;
 
 void initTexture(){
 
@@ -215,6 +233,8 @@ void init(void)
     rotationX = 0;
     rotationY = 0;
 
+    gravityDirection = new Vector(0, -1, 0);
+
     //Cylinder related
     //cylinder = gluNewQuadric();
     //p0 = new Vector(-120, 0, 0);
@@ -299,6 +319,22 @@ void control_cb(int control)
 
         dirLight->setDifusse(diff1, diff2, diff3);
     }
+    else if(control == START_ID)
+    {
+        isPaused = false;
+        spinnerResolution->disable();
+        collisionObjecGroup->disable();
+    }
+    else if(control == PAUSE_ID)
+    {
+        isPaused = true;
+        spinnerResolution->enable();
+        collisionObjecGroup->enable();
+    }
+    else if(control == RESTART_ID)
+    {
+        initWire();
+    }
 
     glutPostRedisplay();
 }
@@ -351,7 +387,34 @@ void glui()
     gluiPhys->set_main_gfx_window(main_window);
     GLUI_Panel *physicsPanel = new GLUI_Panel(gluiPhys, "Physics");
     gravitySpinner = new GLUI_Spinner(physicsPanel, "Gravity force", &gravityForce, GRAVITY_CONSTANT_ID, control_cb);
-    gravitySpinner->set_float_limits(-20.0f, 10.0f);
+    gravitySpinner->set_float_limits(0, 20.0f);
+    gravityXSpinner = new GLUI_Spinner(physicsPanel, "X Direction", &gravityDirection->x, GRAVITY_DIRECTION_ID, control_cb);
+    gravityXSpinner->set_float_limits(-1.0f, 1.0f);
+    gravityYSpinner = new GLUI_Spinner(physicsPanel, "Y Direction", &gravityDirection->y, GRAVITY_DIRECTION_ID, control_cb);
+    gravityYSpinner->set_float_limits(-1.0f, 1.0f);
+    gravityZSpinner = new GLUI_Spinner(physicsPanel, "Z Direction", &gravityDirection->z, GRAVITY_DIRECTION_ID, control_cb);
+    gravityZSpinner->set_float_limits(-1.0f, 1.0f);
+
+    glui->add_column_to_panel(physicsPanel, true);
+    springKsSpinner = new GLUI_Spinner(physicsPanel, "Spring KS", &ks, KS_ID, control_cb);
+    springKsSpinner->set_float_limits(10, 20);
+    springKdSpinner = new GLUI_Spinner(physicsPanel, "Spring KD", &kd, KD_ID, control_cb);
+    springKdSpinner->set_float_limits(0.1f, 0.9f);
+    particleRadiusSpinner = new GLUI_Spinner(physicsPanel, "Particle radius", &particleRadius, PARTICLE_RADIUS_ID, control_cb);
+    particleRadiusSpinner->set_float_limits(0.0f, 10.0f);
+
+    new GLUI_Column(gluiPhys, false);
+    //New panel for simulation control
+    GLUI_Panel *controlPanel = new GLUI_Panel(gluiPhys, "Simulation control");
+    startButton = new GLUI_Button(controlPanel, "Start", START_ID, control_cb);
+    pauseButton = new GLUI_Button(controlPanel, "Pause", PAUSE_ID, control_cb);
+    resetButton = new GLUI_Button(controlPanel, "Reset", RESTART_ID, control_cb);
+
+    new GLUI_Column(gluiPhys, false);
+    GLUI_Panel *collisionObjectPanel = new GLUI_Panel(gluiPhys, "Collision Object");
+    collisionObjecGroup = new GLUI_RadioGroup(collisionObjectPanel, &figure, FIGURE_ID, control_cb);
+    new GLUI_RadioButton(collisionObjecGroup, "Sphere");
+    new GLUI_RadioButton(collisionObjecGroup, "Capsule");
 }
 
 void key(unsigned char key, int x, int y)
@@ -389,10 +452,15 @@ void key(unsigned char key, int x, int y)
 
 void update(int i)
 {
-    myWire->update(SPHERE_RADIUS, gravityForce);
+    if(!isPaused)
+    {
+        myWire->update(SPHERE_RADIUS, gravityForce, *gravityDirection, ks, kd, particleRadius);
+        glutPostRedisplay();
+    }
 
-    glutPostRedisplay();
-    glutTimerFunc(60, update, 1);
+    //Uncoment to use glui
+    //glutTimerFunc(60, update, 1);
+    GLUI_Master.set_glutTimerFunc(60, update, 10);
 }
 
 int main(int argc, char **argv)
@@ -406,20 +474,21 @@ int main(int argc, char **argv)
 
     init();
 
-    glutDisplayFunc(display);
-
     //Comment if you dont want to use GLUI
+    //glutDisplayFunc(display);
     //glutReshapeFunc(reshape);
     //glutMouseFunc(mouse);
     //glutKeyboardFunc(key);
+    //glutTimerFunc(60, update, 10);
+    //glutMotionFunc(mouseMotion);
 
     //Uncoment if you want to use GLUI
+    GLUI_Master.set_glutDisplayFunc(display);
     GLUI_Master.set_glutReshapeFunc(reshape);
     GLUI_Master.set_glutKeyboardFunc(key);
     GLUI_Master.set_glutMouseFunc(mouse);
-    //GLUI_Master.set_glutIdleFunc(NULL);
-
-    glutTimerFunc(60, update, 10);
+    GLUI_Master.set_glutIdleFunc(NULL);
+    GLUI_Master.set_glutTimerFunc(60, update, 10);
 
     glutMotionFunc(mouseMotion);
 

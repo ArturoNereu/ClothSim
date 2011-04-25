@@ -35,7 +35,7 @@ class Wire
         void renderParticles();
         void renderTriangles(bool showWireframe, bool flatShade);
         void renderSprings();
-        void update(int sphereRadius, float gravityForce);
+        void update(int sphereRadius, float gravityForce, Vector gravityDirection, float ks, float kd, float particleRadius);
         void generateSprings();
         void calculateParticleNormal(int c, int r);
     protected:

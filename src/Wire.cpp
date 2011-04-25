@@ -163,20 +163,21 @@ void Wire::renderSprings()
     }
 }
 
-void Wire::update(int sphereRadius, float gravityForce)
+void Wire::update(int sphereRadius, float gravityForce, Vector gravityDirection, float ks, float kd, float particleRadius)
 {
     for(int i = 0; i < resolution; i++)
     {
         for(int j = 0; j < resolution; j++)
         {
+            particles[i][j].radius = particleRadius;
             particles[i][j].clearForces();
-            particles[i][j].addForce(0, gravityForce, 0);
+            particles[i][j].addForce(gravityDirection.x * gravityForce, gravityDirection.y * gravityForce, gravityDirection.z * gravityForce);
         }
     }
 
     for(int i = 0; i < numberOfSprings; i++)
     {
-        springs[i]->update();
+        springs[i]->update(ks, kd);
     }
 
     for(int i = 0; i < resolution; i++)

@@ -22,8 +22,11 @@ Spring::~Spring()
     //dtor
 }
 
-void Spring::update()
+void Spring::update(float ks, float kd)
 {
+    this->ks = ks;
+    this->kd = kd;
+
     applySpringForce();
 }
 

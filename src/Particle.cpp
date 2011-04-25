@@ -48,7 +48,7 @@ void Particle::addForce(float x, float y, float z)
 
 void Particle::render()
 {
-    glPointSize(3.0f);
+    glPointSize((int)radius);
 
     if(isFixed)
         glColor3f(0, 0, 1);
