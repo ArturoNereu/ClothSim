@@ -5,4 +5,8 @@ Author: Diego Gurrusquieta
 
 Use Code::Blocks, create a new Glut project and copy the files to its corresponding directories.
 
+If you want to use the UI to change the Physics, Lighting, etc. You must install GLUI.
+Here are a few steps to do so using Code::Blocks
+
+http://masdel.wordpress.com/2010/10/21/installing-glui-using-codeblocks-on-windows/
 
