@@ -27,6 +27,11 @@
 #define CYLINDER_HEIGHT 240
 #define CYLINDER_SLICES 10
 
+#define MIN_PARTICLES_PER_HAIR 1
+#define MAX_PARTICLES_PER_HAIR 10
+
+#define REFRESH_RATE 60
+
 /********** User IDs for callbacks ********/
 #define MESH_RESOLUTION_ID 100
 #define TEXTURE_ENABLED_ID 200
@@ -58,6 +63,10 @@ Material *material;
 //GLUquadricObj *cylinder;
 //Vector *p0;
 //Vector *p1;
+
+//Hair related variables
+float hairEnabled = 0;
+int particlesPerHair = MIN_PARTICLES_PER_HAIR;
 
 //Flags to show/hide elements
 int showParticles = 1;
@@ -96,6 +105,9 @@ float cameraUp[4] = {0.0, 1.0, 0.0};
 float viewRotation[16] = {1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1};
 float lightRotation[16] = {1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1};
 
+//Object position
+float objPos[3] = {0.0f, 0.0f, 0.0f};
+
 float fovy = 45.0;
 float dNear = 100;
 float dFar = 2000;
@@ -109,7 +121,7 @@ GLUI_Spinner *spinnerResolution, *lightIntensitySpinner, *gravitySpinner, *gravi
 GLUI_Checkbox *textureEnabledCheckBox, *showWireframeCheckBox, *showFlatShadeCheckBox, *showParticlesCheckBox, *enableLightCheckBox;
 GLUI_Scrollbar *redBar, *greenBar, *blueBar;
 GLUI_Rotation *lightRotationBall, *sceneRotation;
-GLUI_Translation *translationXY, *translationZ;
+GLUI_Translation *translationXY, *translationZ, *objTranslationXY, *objTranslationZ;
 GLUI_Button *startButton, *pauseButton, *resetButton;
 GLUI_RadioGroup *collisionObjecGroup;
 
@@ -202,10 +214,10 @@ void display(void){
     }
 
     //myWire->renderSprings();
-    //glPushMatrix();
-    //glTranslatef(0, -250, 0);
+    glPushMatrix();
+    glTranslatef(objPos[0], objPos[1], objPos[2]);
     glutSolidSphere(SPHERE_RADIUS, SPHERE_SLICES, SPHERE_SLICES);
-    //glPopMatrix();
+    glPopMatrix();
 /*
     if(showWireframe)
     {
@@ -410,11 +422,17 @@ void glui()
     pauseButton = new GLUI_Button(controlPanel, "Pause", PAUSE_ID, control_cb);
     resetButton = new GLUI_Button(controlPanel, "Reset", RESTART_ID, control_cb);
 
-    new GLUI_Column(gluiPhys, false);
     GLUI_Panel *collisionObjectPanel = new GLUI_Panel(gluiPhys, "Collision Object");
     collisionObjecGroup = new GLUI_RadioGroup(collisionObjectPanel, &figure, FIGURE_ID, control_cb);
     new GLUI_RadioButton(collisionObjecGroup, "Sphere");
     new GLUI_RadioButton(collisionObjecGroup, "Capsule");
+
+    new GLUI_Column(gluiPhys, false);
+    GLUI_Panel *collisionMovementPanel = new GLUI_Panel(gluiPhys, "Object Movement");
+    objTranslationXY = new GLUI_Translation(collisionMovementPanel, "XY", GLUI_TRANSLATION_XY, objPos);
+    objTranslationXY->set_speed(5);
+    objTranslationZ = new GLUI_Translation(collisionMovementPanel, "Z", GLUI_TRANSLATION_Z, objPos);
+    objTranslationZ->set_speed(5);
 }
 
 void key(unsigned char key, int x, int y)
@@ -454,13 +472,13 @@ void update(int i)
 {
     if(!isPaused)
     {
-        myWire->update(SPHERE_RADIUS, gravityForce, *gravityDirection, ks, kd, particleRadius);
+        myWire->update(SPHERE_RADIUS, gravityForce, *gravityDirection, ks, kd, particleRadius, objPos);
         glutPostRedisplay();
     }
 
     //Uncoment to use glui
     //glutTimerFunc(60, update, 1);
-    GLUI_Master.set_glutTimerFunc(60, update, 10);
+    GLUI_Master.set_glutTimerFunc(REFRESH_RATE, update, 10);
 }
 
 int main(int argc, char **argv)
@@ -488,7 +506,7 @@ int main(int argc, char **argv)
     GLUI_Master.set_glutKeyboardFunc(key);
     GLUI_Master.set_glutMouseFunc(mouse);
     GLUI_Master.set_glutIdleFunc(NULL);
-    GLUI_Master.set_glutTimerFunc(60, update, 10);
+    GLUI_Master.set_glutTimerFunc(REFRESH_RATE, update, 10);
 
     glutMotionFunc(mouseMotion);
 

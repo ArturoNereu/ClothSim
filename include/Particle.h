@@ -38,8 +38,8 @@ class Particle
         void render();
         Vector *verletIntegrationToVelocity();
         Vector *verletIntegrationToPosition();
-        void update(int sphereRadius);
-        void checkCollisionWithSphere(int radius);
+        void update(int sphereRadius, float *objPos);
+        void checkCollisionWithSphere(int radius, float *objPos);
         void checkCollisionWithCapsule(Vector p0, Vector p1, float radius);
 
     protected:

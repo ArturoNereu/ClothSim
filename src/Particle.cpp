@@ -79,7 +79,7 @@ Vector * Particle::verletIntegrationToPosition()
     return nextPos;
 }
 
-void Particle::update(int sphereRadius)
+void Particle::update(int sphereRadius, float *objPos)
 {
     velocity->x = forceAcum->x * 0.1f;
     velocity->y = forceAcum->y * 0.1f;
@@ -102,7 +102,7 @@ void Particle::update(int sphereRadius)
     prevPosition->y = tempY;
     prevPosition->z = tempZ;
 
-    checkCollisionWithSphere(sphereRadius);
+    checkCollisionWithSphere(sphereRadius, objPos);
     //checkCollisionWithCapsule(p0, p1, cylinderRadius);
 }
 
@@ -157,10 +157,10 @@ void Particle::checkCollisionWithCapsule(Vector p0, Vector p1, float radius)
     }
 }
 
-void Particle::checkCollisionWithSphere(int radius)
+void Particle::checkCollisionWithSphere(int radius, float *objPos)
 {
     float penDist;
-    Vector *spherePos = new Vector(0, 0, 0);
+    Vector *spherePos = new Vector(objPos[0], objPos[1], objPos[2]);
     Vector *dist = new Vector();
     Vector::substract(dist, *position, *spherePos);
     penDist = dist->getLength() - (radius + this->radius);
